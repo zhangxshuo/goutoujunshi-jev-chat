@@ -69,6 +69,17 @@ struct CoreChecks {
 
     static func contracts() throws {
         try check("Default uses DeepSeek independently", AppConfig().judge == .deepseek && AppConfig().reply == .deepseek)
+        let transfer = KeyboardConfigTransfer(config: AppConfig(), secrets: ["deepseek": "test-only-key"])
+        let encodedTransfer = try JSONEncoder().encode(transfer)
+        let decodedTransfer = try JSONDecoder().decode(KeyboardConfigTransfer.self, from: encodedTransfer)
+        try decodedTransfer.validate()
+        try check("Keyboard config transfer round-trips", decodedTransfer.secrets["deepseek"] == "test-only-key")
+        try rejects("Expired keyboard config transfer rejected") {
+            var expired = transfer; expired.createdAt = Date().addingTimeInterval(-601); try expired.validate()
+        }
+        try rejects("Unknown keyboard secret rejected") {
+            try KeyboardConfigTransfer(config: AppConfig(), secrets: ["other": "value"]).validate()
+        }
         try check("Seven project strategies", Strategy.allCases.count == 7)
         try check("Natural voice guide bundled", GoutouGuidance.common.contains("先像本人") && GoutouGuidance.common.contains("别演自然"))
         try check("Repair guide bundled", GoutouGuidance.scene["修复冲突"] != nil)

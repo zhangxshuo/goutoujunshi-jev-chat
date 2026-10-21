@@ -16,8 +16,10 @@ struct ProviderView: View {
         Form {
             if model.store?.isUsingSharedGroup == false {
                 Section("全能签兼容模式") {
-                    Text("App Group 未被当前签名保留。主 App 仍可使用，但键盘无法读取这里的配置；请在聊天键盘的「军师 → 键盘内 API Key 配置」中单独填写 DeepSeek Key。")
+                    Text("App Group 未被当前签名保留。填写并测试 DeepSeek Key 后，点下方“复制键盘独立配置”，再切回聊天键盘的「军师 → 键盘内 API Key 配置 → 从剪贴板导入」。")
                         .font(.footnote).foregroundStyle(Palette.secondary)
+                    Button("复制键盘独立配置") { copyKeyboardConfig() }
+                        .accessibilityIdentifier("copyKeyboardConfigButton")
                 }
             }
             Section("策略判断与回复生成") {
@@ -120,6 +122,24 @@ struct ProviderView: View {
             try store.saveConfig(draft)
             deepseekKey = ""; openrouterKey = ""; jevKey = ""
             refreshKeys(); model.reload(); message = "已保存，下一次键盘分析使用新配置。"
+        } catch { message = error.localizedDescription }
+    }
+    private func copyKeyboardConfig() {
+        do {
+            try draft.validate()
+            let values = try secrets()
+            var keys = [String: String]()
+            if !values.deepseek.trimmed.isEmpty { keys["deepseek"] = values.deepseek.trimmed }
+            if !values.openrouter.trimmed.isEmpty { keys["openrouter"] = values.openrouter.trimmed }
+            if !values.jev.trimmed.isEmpty { keys["jev"] = values.jev.trimmed }
+            let transfer = KeyboardConfigTransfer(config: draft, secrets: keys)
+            try transfer.validate()
+            let data = try JSONEncoder().encode(transfer)
+            guard data.count <= 64_000, let text = String(data: data, encoding: .utf8) else {
+                throw GoutouError.invalid("键盘配置过大，无法复制")
+            }
+            UIPasteboard.general.string = text
+            message = "独立配置已复制（含 API Key）。请在 10 分钟内切到键盘导入；导入后会自动覆盖剪贴板。"
         } catch { message = error.localizedDescription }
     }
     private func testButton(_ title: String, provider: ReplyProvider) -> some View {

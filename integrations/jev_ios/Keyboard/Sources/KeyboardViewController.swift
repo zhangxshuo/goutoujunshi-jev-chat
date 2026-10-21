@@ -562,8 +562,12 @@ final class KeyboardViewController: UIInputViewController {
     private func setupView() {
         content.addArrangedSubview(KB.card([
             KB.label("键盘内 API Key 配置", size: 17, bold: true),
-            KB.label("默认判断和回复都使用 DeepSeek。截图识别默认 Apple Vision 本地，不发送图片。已保存的 Key 不会显示，留空表示保留。", size: 13)
+            KB.label("推荐从主 App 复制独立配置，再点下方导入。自定义键盘内直接输入可能无法唤起系统输入法，文本框仅作备用。", size: 13)
         ]))
+        content.addArrangedSubview(KB.button("从剪贴板导入配置", icon: "doc.on.clipboard", primary: true) { [weak self] in
+            self?.importClipboardConfig()
+        })
+        content.addArrangedSubview(KB.label("也可只复制一个 DeepSeek API Key 后导入。", size: 12))
         content.addArrangedSubview(KB.label("DeepSeek 模型 ID", size: 13, bold: true))
         content.addArrangedSubview(setupTextField(placeholder: "deepseek-flash", tag: 100, secure: false))
         content.addArrangedSubview(KB.label("DeepSeek API Key（必填）", size: 13, bold: true))
@@ -580,6 +584,42 @@ final class KeyboardViewController: UIInputViewController {
             KB.button("保存并启用", primary: true) { [weak self] in self?.saveSetup() }
         ]))
         content.addArrangedSubview(KB.label("注意：共享配置使用系统容器保护，兼容重签工具，但不等同于硬件级密钥隔离。不要在共享设备保存长期大额 Key。", size: 12))
+    }
+
+    private func importClipboardConfig() {
+        do {
+            guard let raw = UIPasteboard.general.string?.trimmed, !raw.isEmpty else {
+                throw GoutouError.invalid("剪贴板为空；请先在主 App 点“复制键盘独立配置”")
+            }
+            guard let store = store else { throw GoutouError.invalid("键盘配置存储不可用") }
+            if raw.hasPrefix("{"), let data = raw.data(using: .utf8),
+               let transfer = try? JSONDecoder().decode(KeyboardConfigTransfer.self, from: data) {
+                try transfer.validate()
+                for (name, value) in transfer.secrets {
+                    try CredentialVault.write(value, name: name)
+                }
+                try store.saveConfig(transfer.config)
+                config = store.config()
+                relationship = store.relationship()
+            } else {
+                guard raw.count <= 1024 else {
+                    throw GoutouError.invalid("剪贴板内容过长；请复制主 App 生成的独立配置")
+                }
+                try CredentialVault.write(raw, name: "deepseek")
+                config = store.config()
+            }
+            setupDeepseekModel = config.deepseekModel
+            setupDeepseekKey = ""; setupOpenRouterKey = ""; setupJevKey = ""
+            UIPasteboard.general.string = "狗头军师键盘配置已导入"
+            mode = .idle
+            notice = hasSecret("deepseek")
+                ? "独立配置已导入，可读取剪贴板开始分析。"
+                : "配置已导入，但还没有 DeepSeek Key。"
+            render()
+        } catch {
+            notice = error.localizedDescription
+            render()
+        }
     }
 
     private func setupTextField(placeholder: String, tag: Int, secure: Bool) -> UITextField {

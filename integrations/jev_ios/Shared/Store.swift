@@ -32,6 +32,31 @@ struct KeyboardSession: Codable {
     }
 }
 
+/// Explicit user-mediated transfer for signers that strip App Groups.
+/// The payload is copied through UIPasteboard and expires quickly.
+struct KeyboardConfigTransfer: Codable {
+    static let currentVersion = 1
+    static let maximumAge: TimeInterval = 600
+
+    var version = currentVersion
+    var createdAt = Date()
+    var config: AppConfig
+    var secrets: [String: String]
+
+    func validate(at date: Date = Date()) throws {
+        let age = date.timeIntervalSince(createdAt)
+        guard version == Self.currentVersion, (0...Self.maximumAge).contains(age) else {
+            throw GoutouError.invalid("独立配置已过期，请在主 App 重新复制")
+        }
+        try config.validate()
+        let allowed: Set<String> = ["deepseek", "openrouter", "jev"]
+        guard !secrets.isEmpty, Set(secrets.keys).isSubset(of: allowed),
+              secrets.values.allSatisfy({ !$0.trimmed.isEmpty && $0.count <= 1024 }) else {
+            throw GoutouError.invalid("独立配置中的 Key 不完整或格式错误")
+        }
+    }
+}
+
 final class GoutouStore {
     static var group: String { Bundle.main.object(forInfoDictionaryKey: "GoutouAppGroup") as? String ?? "group.ai.goutoujunshi.chatios" }
     private let defaults: UserDefaults
