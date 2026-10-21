@@ -74,11 +74,19 @@ struct CoreChecks {
         let decodedTransfer = try JSONDecoder().decode(KeyboardConfigTransfer.self, from: encodedTransfer)
         try decodedTransfer.validate()
         try check("Keyboard config transfer round-trips", decodedTransfer.secrets["deepseek"] == "test-only-key")
+        let clipboardTransfer = try decodedTransfer.clipboardText()
+        let decodedClipboard = try KeyboardConfigTransfer.decodeClipboardText(clipboardTransfer)
+        try check("Keyboard config clipboard marker and base64 round-trip",
+                  clipboardTransfer.hasPrefix(KeyboardConfigTransfer.clipboardPrefix) &&
+                  decodedClipboard.secrets["deepseek"] == "test-only-key")
         try rejects("Expired keyboard config transfer rejected") {
             var expired = transfer; expired.createdAt = Date().addingTimeInterval(-601); try expired.validate()
         }
         try rejects("Unknown keyboard secret rejected") {
             try KeyboardConfigTransfer(config: AppConfig(), secrets: ["other": "value"]).validate()
+        }
+        try rejects("Unmarked clipboard config rejected") {
+            _ = try KeyboardConfigTransfer.decodeClipboardText("{\"version\":1}")
         }
         try check("Seven project strategies", Strategy.allCases.count == 7)
         try check("Natural voice guide bundled", GoutouGuidance.common.contains("先像本人") && GoutouGuidance.common.contains("别演自然"))

@@ -109,6 +109,8 @@ final class KeyboardViewController: UIInputViewController {
             config = store!.config(); relationship = store!.relationship()
             documentID = textDocumentProxy.documentIdentifier
             store?.setKeyboardStatus(fullAccess: true)
+            let importedConfig = importClipboardConfigIfPresent()
+            config = store!.config(); relationship = store!.relationship()
             if let handoff = store?.takeHandoff() {
                 transcript = handoff.transcript; advice = handoff.advice; confirmed = false
                 mode = .result
@@ -126,9 +128,13 @@ final class KeyboardViewController: UIInputViewController {
                 notice = "已恢复本轮内容（暂存 5 分钟）；请重新核对原文、双方身份与当前收件人。"
             } else {
                 mode = .idle
-                notice = store?.isUsingSharedGroup == false
-                    ? "App Group 未连接；请先在键盘内配置 DeepSeek Key，截图快捷指令和主 App 交接暂不可用。"
-                    : ""
+                if importedConfig {
+                    notice = "配置已从主 App 自动同步；顶栏确认 Key 状态后即可分析。"
+                } else {
+                    notice = store?.isUsingSharedGroup == false
+                        ? "App Group 未连接；请先在主 App 复制独立配置，键盘出现后会自动同步。"
+                        : ""
+                }
             }
             receiveCapture()
         } catch { mode = .gate; notice = error.localizedDescription }
@@ -326,10 +332,14 @@ final class KeyboardViewController: UIInputViewController {
         if store != nil, mode != .setup, mode != .gate { content.addArrangedSubview(contextButton()) }
         switch mode {
         case .idle:
+            content.addArrangedSubview(KB.label(
+                hasSecret("deepseek") ? "键盘状态 · DeepSeek Key 已配置" : "键盘状态 · DeepSeek Key 未配置",
+                size: 13, bold: true
+            ))
             if store?.isUsingSharedGroup == false {
                 content.addArrangedSubview(KB.card([
                     KB.label("全能签兼容模式", size: 17, bold: true),
-                    KB.label("当前签名没有保留 App Group。主 App 与键盘无法共享配置；请在这里填写 DeepSeek Key，键盘仍可完成剪贴板读取、分析和填入草稿。", size: 14)
+                    KB.label("当前签名没有保留 App Group。请在主 App 填好 Key 后点“复制键盘独立配置”，再切回键盘；本键盘出现时会自动同步，不再依赖手填。", size: 14)
                 ], highlighted: true))
             }
             content.addArrangedSubview(KB.label("从聊天截图或已复制的消息读取，再核对并分析。", size: 14))
@@ -592,15 +602,13 @@ final class KeyboardViewController: UIInputViewController {
                 throw GoutouError.invalid("剪贴板为空；请先在主 App 点“复制键盘独立配置”")
             }
             guard let store = store else { throw GoutouError.invalid("键盘配置存储不可用") }
-            if raw.hasPrefix("{"), let data = raw.data(using: .utf8),
+            if raw.hasPrefix(KeyboardConfigTransfer.clipboardPrefix) {
+                let transfer = try KeyboardConfigTransfer.decodeClipboardText(raw)
+                try apply(transfer, store: store)
+            } else if raw.hasPrefix("{"), let data = raw.data(using: .utf8),
                let transfer = try? JSONDecoder().decode(KeyboardConfigTransfer.self, from: data) {
                 try transfer.validate()
-                for (name, value) in transfer.secrets {
-                    try CredentialVault.write(value, name: name)
-                }
-                try store.saveConfig(transfer.config)
-                config = store.config()
-                relationship = store.relationship()
+                try apply(transfer, store: store)
             } else {
                 guard raw.count <= 1024 else {
                     throw GoutouError.invalid("剪贴板内容过长；请复制主 App 生成的独立配置")
@@ -620,6 +628,29 @@ final class KeyboardViewController: UIInputViewController {
             notice = error.localizedDescription
             render()
         }
+    }
+
+    private func importClipboardConfigIfPresent() -> Bool {
+        guard hasFullAccess, let raw = UIPasteboard.general.string?.trimmed,
+              raw.hasPrefix(KeyboardConfigTransfer.clipboardPrefix), let store = store else { return false }
+        do {
+            let transfer = try KeyboardConfigTransfer.decodeClipboardText(raw)
+            try apply(transfer, store: store)
+            UIPasteboard.general.string = "狗头军师键盘配置已导入"
+            return true
+        } catch {
+            notice = error.localizedDescription
+            return false
+        }
+    }
+
+    private func apply(_ transfer: KeyboardConfigTransfer, store: GoutouStore) throws {
+        for (name, value) in transfer.secrets {
+            try CredentialVault.write(value, name: name)
+        }
+        try store.saveConfig(transfer.config)
+        config = store.config()
+        relationship = store.relationship()
     }
 
     private func setupTextField(placeholder: String, tag: Int, secure: Bool) -> UITextField {

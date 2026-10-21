@@ -16,7 +16,7 @@ struct ProviderView: View {
         Form {
             if model.store?.isUsingSharedGroup == false {
                 Section("全能签兼容模式") {
-                    Text("App Group 未被当前签名保留。填写并测试 DeepSeek Key 后，点下方“复制键盘独立配置”，再切回聊天键盘的「军师 → 键盘内 API Key 配置 → 从剪贴板导入」。")
+                    Text("App Group 未被当前签名保留。填写并测试 DeepSeek Key 后，点下方“复制键盘独立配置”，再切回聊天键盘；键盘出现时会自动同步，顶栏会显示 DeepSeek Key 是否已配置。")
                         .font(.footnote).foregroundStyle(Palette.secondary)
                     Button("复制键盘独立配置") { copyKeyboardConfig() }
                         .accessibilityIdentifier("copyKeyboardConfigButton")
@@ -134,12 +134,8 @@ struct ProviderView: View {
             if !values.jev.trimmed.isEmpty { keys["jev"] = values.jev.trimmed }
             let transfer = KeyboardConfigTransfer(config: draft, secrets: keys)
             try transfer.validate()
-            let data = try JSONEncoder().encode(transfer)
-            guard data.count <= 64_000, let text = String(data: data, encoding: .utf8) else {
-                throw GoutouError.invalid("键盘配置过大，无法复制")
-            }
-            UIPasteboard.general.string = text
-            message = "独立配置已复制（含 API Key）。请在 10 分钟内切到键盘导入；导入后会自动覆盖剪贴板。"
+            UIPasteboard.general.string = try transfer.clipboardText()
+            message = "独立配置已复制（含 API Key）。请在 10 分钟内切到键盘；键盘出现后会自动同步并覆盖剪贴板。"
         } catch { message = error.localizedDescription }
     }
     private func testButton(_ title: String, provider: ReplyProvider) -> some View {

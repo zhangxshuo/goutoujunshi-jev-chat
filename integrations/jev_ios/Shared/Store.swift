@@ -37,6 +37,7 @@ struct KeyboardSession: Codable {
 struct KeyboardConfigTransfer: Codable {
     static let currentVersion = 1
     static let maximumAge: TimeInterval = 600
+    static let clipboardPrefix = "GOUTOU_CONFIG_V1:"
 
     var version = currentVersion
     var createdAt = Date()
@@ -54,6 +55,26 @@ struct KeyboardConfigTransfer: Codable {
               secrets.values.allSatisfy({ !$0.trimmed.isEmpty && $0.count <= 1024 }) else {
             throw GoutouError.invalid("独立配置中的 Key 不完整或格式错误")
         }
+    }
+
+    func clipboardText() throws -> String {
+        try validate()
+        let data = try JSONEncoder().encode(self)
+        guard data.count <= 64_000 else { throw GoutouError.invalid("键盘配置过大，无法复制") }
+        return Self.clipboardPrefix + data.base64EncodedString()
+    }
+
+    static func decodeClipboardText(_ raw: String) throws -> KeyboardConfigTransfer {
+        guard raw.hasPrefix(clipboardPrefix) else {
+            throw GoutouError.invalid("剪贴板中没有狗头军师独立配置")
+        }
+        let encoded = String(raw.dropFirst(clipboardPrefix.count))
+        guard let data = Data(base64Encoded: encoded), data.count <= 64_000 else {
+            throw GoutouError.invalid("独立配置格式错误，请在主 App 重新复制")
+        }
+        let transfer = try JSONDecoder().decode(KeyboardConfigTransfer.self, from: data)
+        try transfer.validate()
+        return transfer
     }
 }
 
