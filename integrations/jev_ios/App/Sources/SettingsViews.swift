@@ -18,6 +18,8 @@ struct ProviderView: View {
                 Section("全能签兼容模式") {
                     Text("App Group 未被当前签名保留。填写并测试 DeepSeek Key 后，点下方“复制键盘独立配置”，再切回聊天键盘；键盘出现时会自动同步，顶栏会显示 DeepSeek Key 是否已配置。")
                         .font(.footnote).foregroundStyle(Palette.secondary)
+                    Text("本机独立存储已启用，保存不依赖 App Group。当前构建 \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知")。")
+                        .font(.caption).foregroundStyle(Palette.secondary)
                     Button("复制键盘独立配置") { copyKeyboardConfig() }
                         .accessibilityIdentifier("copyKeyboardConfigButton")
                 }

@@ -80,19 +80,21 @@ struct KeyboardConfigTransfer: Codable {
 
 final class GoutouStore {
     static var group: String { Bundle.main.object(forInfoDictionaryKey: "GoutouAppGroup") as? String ?? "group.ai.goutoujunshi.chatios" }
+    private static var sharedGroupCheck: Bool?
     private let defaults: UserDefaults
     private let container: URL
     let isUsingSharedGroup: Bool
 
     init() throws {
         #if os(iOS)
-        if let sharedContainer = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.group),
+        if Self.sharedGroupIsUsable(),
+           let sharedContainer = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.group),
            let sharedDefaults = UserDefaults(suiteName: Self.group) {
             container = sharedContainer
             defaults = sharedDefaults
             isUsingSharedGroup = true
         } else {
-            container = try Self.makeLocalContainer()
+            container = Self.makeLocalContainer()
             defaults = .standard
             isUsingSharedGroup = false
         }
@@ -117,22 +119,59 @@ final class GoutouStore {
 
     /// Sideload signers can strip App Group entitlements. Keep the App useful
     /// in that case, with keyboard-local settings and no cross-process features.
-    private static func makeLocalContainer() throws -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        let directory = base.appendingPathComponent("GoutouJunshi", isDirectory: true)
-        do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            return directory
-        } catch {
-            throw GoutouError.invalid("无法创建本地配置目录：\(error.localizedDescription)")
+    static func sharedGroupIsUsable() -> Bool {
+        #if os(iOS)
+        if let sharedGroupCheck { return sharedGroupCheck }
+        guard let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group),
+              let defaults = UserDefaults(suiteName: group) else {
+            sharedGroupCheck = false
+            return false
         }
+        let token = UUID().uuidString
+        let file = container.appendingPathComponent(".goutou-write-check-\(token)")
+        let key = "goutou.writeCheck"
+        defaults.set(token, forKey: key)
+        defaults.synchronize()
+        let defaultsWritable = defaults.string(forKey: key) == token
+        defaults.removeObject(forKey: key)
+        defaults.synchronize()
+        let fileWritable: Bool
+        do {
+            try Data(token.utf8).write(to: file, options: .atomic)
+            fileWritable = (try? Data(contentsOf: file)) == Data(token.utf8)
+            try? FileManager.default.removeItem(at: file)
+        } catch {
+            fileWritable = false
+        }
+        let usable = defaultsWritable && fileWritable
+        sharedGroupCheck = usable
+        return usable
+        #else
+        return true
+        #endif
+    }
+
+    private static func makeLocalContainer() -> URL {
+        let bases = [
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
+            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first,
+            FileManager.default.temporaryDirectory
+        ].compactMap { $0 }
+        for base in bases {
+            let directory = base.appendingPathComponent("GoutouJunshi", isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                return directory
+            } catch { continue }
+        }
+        return FileManager.default.temporaryDirectory.appendingPathComponent("GoutouJunshi", isDirectory: true)
     }
 
     func config() -> AppConfig { decode("config", fallback: AppConfig()) }
     func saveConfig(_ value: AppConfig) throws {
         try value.validate()
         try save(value, key: "config")
+        guard config() == value else { throw GoutouError.invalid("配置写入后回读失败；请重新打开 App 再保存") }
         clearHandoff()
         captureMailbox.clear()
         clearKeyboardSession()
@@ -170,7 +209,7 @@ final class GoutouStore {
     }
     var keyboardStatus: String {
         guard isUsingSharedGroup else {
-            return "App Group 未连接；请在键盘内独立配置 API Key"
+            return "App Group 不可写 · 本机保存正常 · 请复制键盘独立配置"
         }
         guard let seen = defaults.object(forKey: "keyboardLastSeen") as? Double, Date().timeIntervalSince1970 - seen < 86_400 else {
             return "尚未检测到键盘；请到聊天输入框切换一次"
@@ -270,7 +309,7 @@ enum CredentialVault {
     /// best-effort backup and migration source for normally signed builds.
     private static var storage: UserDefaults {
         #if os(iOS)
-        if FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: GoutouStore.group) != nil,
+        if GoutouStore.sharedGroupIsUsable(),
            let shared = UserDefaults(suiteName: GoutouStore.group) {
             return shared
         }
@@ -334,6 +373,9 @@ enum CredentialVault {
         }
         storage.set(value, forKey: key(name))
         storage.synchronize()
+        guard storage.string(forKey: key(name)) == value else {
+            throw GoutouError.invalid("API Key 写入后回读失败；请重新打开 App 再保存")
+        }
         keychainWrite(value, name: name)
     }
 
