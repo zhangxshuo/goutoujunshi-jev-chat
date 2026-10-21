@@ -113,7 +113,7 @@ for name, files, product, kind, identifier, info, entitlement in [
                           dstSubfolderSpec=13, files=embedded, name="Embed App Extensions", runOnlyForDeploymentPostprocessing=0))
     settings = {"PRODUCT_NAME": name, "PRODUCT_BUNDLE_IDENTIFIER": identifier,
                 "INFOPLIST_FILE": info, "CODE_SIGN_ENTITLEMENTS": entitlement,
-                "CURRENT_PROJECT_VERSION": "13", "MARKETING_VERSION": "0.1.1",
+                "CURRENT_PROJECT_VERSION": "14", "MARKETING_VERSION": "0.1.2",
                 "LD_RUNPATH_SEARCH_PATHS": ["$(inherited)", "@executable_path/Frameworks"]}
     if name != "GoutouJunshi":
         settings.update({"APPLICATION_EXTENSION_API_ONLY": "YES", "SKIP_INSTALL": "YES",

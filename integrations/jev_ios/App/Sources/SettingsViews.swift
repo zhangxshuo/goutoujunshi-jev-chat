@@ -20,8 +20,15 @@ struct ProviderView: View {
                         .font(.footnote).foregroundStyle(Palette.secondary)
                     Text("本机独立存储已启用，保存不依赖 App Group。当前构建 \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "未知")。")
                         .font(.caption).foregroundStyle(Palette.secondary)
+                    Button("保存到本机") { save() }
+                        .buttonStyle(BrandPrimaryButtonStyle())
+                        .disabled(testing)
+                        .accessibilityIdentifier("saveLocalConfigButton")
                     Button("复制键盘独立配置") { copyKeyboardConfig() }
                         .accessibilityIdentifier("copyKeyboardConfigButton")
+                    if !message.isEmpty {
+                        Text(message).font(.footnote).foregroundStyle(Palette.secondary).textSelection(.enabled)
+                    }
                 }
             }
             Section("策略判断与回复生成") {
