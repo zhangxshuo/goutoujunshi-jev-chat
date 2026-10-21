@@ -42,6 +42,15 @@ struct ProviderView: View {
                 Text("https://api.deepseek.com").font(.caption).foregroundStyle(Palette.secondary)
                 modelField("模型 ID", value: $draft.deepseekModel)
                 keyField("deepseek", value: $deepseekKey)
+                if model.store?.isUsingSharedGroup == false {
+                    Button("保存 DeepSeek Key 到本机") { save() }
+                        .buttonStyle(BrandPrimaryButtonStyle())
+                        .disabled(testing)
+                        .accessibilityIdentifier("saveDeepSeekKeyButton")
+                    if !message.isEmpty {
+                        Text(message).font(.footnote).foregroundStyle(Palette.secondary).textSelection(.enabled)
+                    }
+                }
                 testButton("测试 DeepSeek", provider: .deepseek)
             }
             Section("OpenRouter") {

@@ -364,8 +364,8 @@
 				"PRODUCT_BUNDLE_IDENTIFIER" = "$(GOUTOU_BUNDLE_ID)";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "App/GoutouJunshi.entitlements";
-				"CURRENT_PROJECT_VERSION" = "14";
-				"MARKETING_VERSION" = "0.1.2";
+				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "0.1.3";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks",);
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
@@ -394,8 +394,8 @@
 				"PRODUCT_BUNDLE_IDENTIFIER" = "$(GOUTOU_BUNDLE_ID)";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "App/GoutouJunshi.entitlements";
-				"CURRENT_PROJECT_VERSION" = "14";
-				"MARKETING_VERSION" = "0.1.2";
+				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "0.1.3";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks",);
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
@@ -577,8 +577,8 @@
 				"PRODUCT_BUNDLE_IDENTIFIER" = "$(GOUTOU_BUNDLE_ID).keyboard";
 				"INFOPLIST_FILE" = "Keyboard/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "Keyboard/GoutouKeyboard.entitlements";
-				"CURRENT_PROJECT_VERSION" = "14";
-				"MARKETING_VERSION" = "0.1.2";
+				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "0.1.3";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks",);
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";
 				"SKIP_INSTALL" = "YES";
@@ -608,8 +608,8 @@
 				"PRODUCT_BUNDLE_IDENTIFIER" = "$(GOUTOU_BUNDLE_ID).keyboard";
 				"INFOPLIST_FILE" = "Keyboard/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "Keyboard/GoutouKeyboard.entitlements";
-				"CURRENT_PROJECT_VERSION" = "14";
-				"MARKETING_VERSION" = "0.1.2";
+				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "0.1.3";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks",);
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";
 				"SKIP_INSTALL" = "YES";
@@ -718,8 +718,8 @@
 				"PRODUCT_BUNDLE_IDENTIFIER" = "$(GOUTOU_BUNDLE_ID).capture";
 				"INFOPLIST_FILE" = "Capture/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "Capture/GoutouCapture.entitlements";
-				"CURRENT_PROJECT_VERSION" = "14";
-				"MARKETING_VERSION" = "0.1.2";
+				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "0.1.3";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks",);
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";
 				"SKIP_INSTALL" = "YES";
@@ -749,8 +749,8 @@
 				"PRODUCT_BUNDLE_IDENTIFIER" = "$(GOUTOU_BUNDLE_ID).capture";
 				"INFOPLIST_FILE" = "Capture/Info.plist";
 				"CODE_SIGN_ENTITLEMENTS" = "Capture/GoutouCapture.entitlements";
-				"CURRENT_PROJECT_VERSION" = "14";
-				"MARKETING_VERSION" = "0.1.2";
+				"CURRENT_PROJECT_VERSION" = "15";
+				"MARKETING_VERSION" = "0.1.3";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks",);
 				"APPLICATION_EXTENSION_API_ONLY" = "YES";
 				"SKIP_INSTALL" = "YES";
