@@ -33,11 +33,33 @@ jobs:
       - name: Compile device targets without distribution signing
         run: >-
           xcodebuild -project GoutouJunshi.xcodeproj -scheme GoutouJunshi
+          -configuration Release
           -destination 'generic/platform=iOS'
           -derivedDataPath build-device
+          CODE_SIGNING_REQUIRED=NO
           CODE_SIGNING_ALLOWED=NO build
+      - name: Package unsigned IPA for sideload signing
+        run: |
+          set -euo pipefail
+          APP=build-device/Build/Products/Release-iphoneos/GoutouJunshi.app
+          test -d "$APP"
+          test -d "$APP/PlugIns/GoutouKeyboard.appex"
+          test -d "$APP/PlugIns/GoutouCapture.appex"
+          mkdir -p build-device/ipa/Payload
+          ditto "$APP" build-device/ipa/Payload/GoutouJunshi.app
+          ditto -c -k --sequesterRsrc --keepParent build-device/ipa/Payload build-device/goutoujunshi-ios-unsigned.ipa
+          shasum -a 256 build-device/goutoujunshi-ios-unsigned.ipa > build-device/goutoujunshi-ios-unsigned.ipa.sha256
+          unzip -l build-device/goutoujunshi-ios-unsigned.ipa | grep -E 'Payload/GoutouJunshi.app/(GoutouJunshi|PlugIns/GoutouKeyboard.appex/GoutouKeyboard|PlugIns/GoutouCapture.appex/GoutouCapture)$'
       - name: Archive simulator app with executable permissions
         run: ditto -c -k --keepParent build/Build/Products/Debug-iphonesimulator/GoutouJunshi.app build/goutoujunshi-ios-simulator-preview.zip
+      - name: Upload unsigned IPA for All-in-One signer
+        uses: actions/upload-artifact@v4
+        with:
+          name: goutoujunshi-ios-unsigned-ipa
+          path: |
+            integrations/jev_ios/build-device/goutoujunshi-ios-unsigned.ipa
+            integrations/jev_ios/build-device/goutoujunshi-ios-unsigned.ipa.sha256
+          if-no-files-found: error
       - name: Upload simulator app for development only
         uses: actions/upload-artifact@v4
         with:

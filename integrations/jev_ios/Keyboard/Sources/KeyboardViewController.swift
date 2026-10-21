@@ -4,7 +4,7 @@ import ReplayKit
 /// Offline typing plus user-invoked relationship advice; it never sends a chat message.
 @MainActor
 final class KeyboardViewController: UIInputViewController {
-    private enum Mode { case idle, screenshot, review, loading, result, details, insertConfirmation, gate }
+    private enum Mode { case idle, setup, screenshot, review, loading, result, details, insertConfirmation, gate }
     private var mode: Mode = .idle
     private var store: GoutouStore?
     private var config = AppConfig()
@@ -36,6 +36,10 @@ final class KeyboardViewController: UIInputViewController {
     private var persistedSession: KeyboardSession?
     private var draftInsertion = DraftInsertion()
     private var expandedReasons = Set<Int>()
+    private var setupDeepseekModel = ""
+    private var setupDeepseekKey = ""
+    private var setupOpenRouterKey = ""
+    private var setupJevKey = ""
     private lazy var typingView: TypingKeyboardView = {
         let keyboard = TypingKeyboardView()
         keyboard.onInsert = { [weak self] text in self?.textDocumentProxy.insertText(text) }
@@ -120,7 +124,12 @@ final class KeyboardViewController: UIInputViewController {
                 mode = advice == nil ? .review : .result
                 showTyping = false
                 notice = "已恢复本轮内容（暂存 5 分钟）；请重新核对原文、双方身份与当前收件人。"
-            } else { mode = .idle; notice = "" }
+            } else {
+                mode = .idle
+                notice = store?.isUsingSharedGroup == false
+                    ? "App Group 未连接；请先在键盘内配置 DeepSeek Key，截图快捷指令和主 App 交接暂不可用。"
+                    : ""
+            }
             receiveCapture()
         } catch { mode = .gate; notice = error.localizedDescription }
         render()
@@ -133,7 +142,7 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
     private func receiveCapture() {
-        guard isKeyboardVisible, hasFullAccess, mode != .loading, mode != .insertConfirmation,
+        guard isKeyboardVisible, hasFullAccess, mode != .loading, mode != .insertConfirmation, mode != .setup,
               let store = store else { return }
         guard let result = store.captureMailbox.peek(relationship: store.relationship(), config: store.config()) else {
             if receivedCaptureID != nil, mode == .screenshot, pendingScreenshot != nil {
@@ -314,16 +323,24 @@ final class KeyboardViewController: UIInputViewController {
             ]))
             return
         }
-        if store != nil { content.addArrangedSubview(contextButton()) }
+        if store != nil, mode != .setup, mode != .gate { content.addArrangedSubview(contextButton()) }
         switch mode {
         case .idle:
+            if store?.isUsingSharedGroup == false {
+                content.addArrangedSubview(KB.card([
+                    KB.label("全能签兼容模式", size: 17, bold: true),
+                    KB.label("当前签名没有保留 App Group。主 App 与键盘无法共享配置；请在这里填写 DeepSeek Key，键盘仍可完成剪贴板读取、分析和填入草稿。", size: 14)
+                ], highlighted: true))
+            }
             content.addArrangedSubview(KB.label("从聊天截图或已复制的消息读取，再核对并分析。", size: 14))
             content.addArrangedSubview(KB.row([
                 KB.button("截图识别", icon: "photo", primary: true) { [weak self] in self?.openScreenshot() },
                 KB.button("读取剪贴板", icon: "doc.on.clipboard") { [weak self] in self?.read(.clipboard) }
             ]))
             content.addArrangedSubview(KB.button("读取输入框里的草稿", icon: "text.cursor") { [weak self] in self?.read(.input) })
+            content.addArrangedSubview(KB.button("键盘内 API Key 配置", icon: "key") { [weak self] in self?.openSetup() })
             content.addArrangedSubview(KB.label("相册选图：打开狗头军师 App → 从截图读取聊天。核对分析后交给键盘。输入框读取只取得自己的草稿。", size: 13))
+        case .setup: setupView()
         case .screenshot: screenshotView()
         case .review: reviewView()
         case .loading:
@@ -520,11 +537,107 @@ final class KeyboardViewController: UIInputViewController {
             self.changeContext(profile, clearTranscript: false)
         } }
         let reset = UIAction(title: "切换为无背景的当前对象") { [weak self] _ in self?.changeContext(Relationship(id: "current"), clearTranscript: true) }
+        let configure = UIAction(title: "键盘内 API Key 与模型配置", image: UIImage(systemName: "key")) { [weak self] _ in self?.openSetup() }
         button.menu = UIMenu(children: [UIMenu(title: "选择对象", children: objects + [reset]),
-                                       UIMenu(title: "关系阶段", children: stages), UIMenu(title: "本轮目标", children: goals)])
+                                       UIMenu(title: "关系阶段", children: stages), UIMenu(title: "本轮目标", children: goals),
+                                       UIMenu(title: "配置", children: [configure])])
         button.showsMenuAsPrimaryAction = true
         button.isEnabled = mode != .loading
         return button
+    }
+
+    private func openSetup() {
+        setupDeepseekModel = config.deepseekModel
+        setupDeepseekKey = ""
+        setupOpenRouterKey = ""
+        setupJevKey = ""
+        showTyping = false
+        mode = .setup
+        notice = store?.isUsingSharedGroup == false
+            ? "此配置只保存在键盘自身容器；卸载或重签可能清除。"
+            : "这里保存后会覆盖主 App 下发到键盘的接口配置。"
+        render()
+    }
+
+    private func setupView() {
+        content.addArrangedSubview(KB.card([
+            KB.label("键盘内 API Key 配置", size: 17, bold: true),
+            KB.label("默认判断和回复都使用 DeepSeek。截图识别默认 Apple Vision 本地，不发送图片。已保存的 Key 不会显示，留空表示保留。", size: 13)
+        ]))
+        content.addArrangedSubview(KB.label("DeepSeek 模型 ID", size: 13, bold: true))
+        content.addArrangedSubview(setupTextField(placeholder: "deepseek-flash", tag: 100, secure: false))
+        content.addArrangedSubview(KB.label("DeepSeek API Key（必填）", size: 13, bold: true))
+        content.addArrangedSubview(setupTextField(placeholder: hasSecret("deepseek") ? "已配置，留空保留" : "sk-...", tag: 101, secure: true))
+        content.addArrangedSubview(KB.label("OpenRouter API Key（可选）", size: 13, bold: true))
+        content.addArrangedSubview(setupTextField(placeholder: hasSecret("openrouter") ? "已配置，留空保留" : "仅 OpenRouter 回复/识图需要", tag: 102, secure: true))
+        content.addArrangedSubview(KB.label("TypeSafe Jev API Key（可选）", size: 13, bold: true))
+        content.addArrangedSubview(setupTextField(placeholder: hasSecret("jev") ? "已配置，留空保留" : "仅 Jev 判断需要", tag: 103, secure: true))
+        content.addArrangedSubview(KB.row([
+            KB.button("返回") { [weak self] in
+                guard let self = self else { return }
+                self.mode = .idle; self.notice = "未保存配置。"; self.render()
+            },
+            KB.button("保存并启用", primary: true) { [weak self] in self?.saveSetup() }
+        ]))
+        content.addArrangedSubview(KB.label("注意：共享配置使用系统容器保护，兼容重签工具，但不等同于硬件级密钥隔离。不要在共享设备保存长期大额 Key。", size: 12))
+    }
+
+    private func setupTextField(placeholder: String, tag: Int, secure: Bool) -> UITextField {
+        let field = UITextField()
+        field.placeholder = placeholder
+        field.tag = tag
+        field.text = tag == 100 ? setupDeepseekModel : ""
+        field.isSecureTextEntry = secure
+        field.textContentType = secure ? .password : nil
+        field.autocapitalizationType = .none
+        field.autocorrectionType = .no
+        field.spellCheckingType = .no
+        field.borderStyle = .roundedRect
+        field.backgroundColor = KB.surface
+        field.textColor = KB.ink
+        field.clearButtonMode = .whileEditing
+        field.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        field.addTarget(self, action: #selector(setupFieldChanged(_:)), for: .editingChanged)
+        return field
+    }
+
+    @objc private func setupFieldChanged(_ sender: UITextField) {
+        let value = sender.text ?? ""
+        switch sender.tag {
+        case 100: setupDeepseekModel = value
+        case 101: setupDeepseekKey = value
+        case 102: setupOpenRouterKey = value
+        case 103: setupJevKey = value
+        default: break
+        }
+    }
+
+    private func hasSecret(_ name: String) -> Bool {
+        ((try? CredentialVault.read(name))?.isEmpty == false)
+    }
+
+    private func saveSetup() {
+        do {
+            var updated = config
+            let model = setupDeepseekModel.trimmed
+            if !model.isEmpty { updated.deepseekModel = model }
+            try updated.validate()
+            for (name, value) in [("deepseek", setupDeepseekKey), ("openrouter", setupOpenRouterKey), ("jev", setupJevKey)]
+            where !value.trimmed.isEmpty {
+                try CredentialVault.write(value, name: name)
+            }
+            guard let store = store else { throw GoutouError.invalid("键盘配置存储不可用") }
+            try store.saveConfig(updated)
+            config = store.config()
+            relationship = store.relationship()
+            setupDeepseekKey = ""; setupOpenRouterKey = ""; setupJevKey = ""
+            mode = .idle
+            notice = "键盘配置已保存；可读取剪贴板开始分析。"
+            render()
+        } catch {
+            notice = error.localizedDescription
+            render()
+        }
     }
     private func changeContext(_ value: Relationship, clearTranscript: Bool) {
         do {

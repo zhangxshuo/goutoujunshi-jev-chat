@@ -54,7 +54,6 @@ entitlements = [plistlib.loads((ROOT / file).read_bytes()) for file in (
     "App/GoutouJunshi.entitlements", "Keyboard/GoutouKeyboard.entitlements")]
 assert entitlements[0] == entitlements[1] == {
     "com.apple.security.application-groups": ["$(GOUTOU_APP_GROUP)"],
-    "keychain-access-groups": ["$(GOUTOU_KEYCHAIN_GROUP)"],
 }
 for file in ("App/Info.plist", "Keyboard/Info.plist"):
     info = plistlib.loads((ROOT / file).read_bytes())

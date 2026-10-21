@@ -14,6 +14,12 @@ struct ProviderView: View {
 
     var body: some View {
         Form {
+            if model.store?.isUsingSharedGroup == false {
+                Section("全能签兼容模式") {
+                    Text("App Group 未被当前签名保留。主 App 仍可使用，但键盘无法读取这里的配置；请在聊天键盘的「军师 → 键盘内 API Key 配置」中单独填写 DeepSeek Key。")
+                        .font(.footnote).foregroundStyle(Palette.secondary)
+                }
+            }
             Section("策略判断与回复生成") {
                 Picker("策略判断", selection: $draft.judge) { ForEach(JudgeProvider.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                 Picker("回复生成", selection: $draft.reply) { ForEach(ReplyProvider.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
@@ -57,7 +63,7 @@ struct ProviderView: View {
                 if testing { HStack { ProgressView(); Button("取消测试") { cancelTest(); message = "已取消" } } }
                 Text(message).font(.footnote).foregroundStyle(Palette.secondary).textSelection(.enabled)
             } footer: {
-                Text("密钥保存在 App 与键盘共享的本机钥匙串，已存 Key 不回显；空白表示保留原 Key。聊天仅在你确认分析时发送到所选接口。")
+                Text("密钥优先保存在 App 与键盘共享的本机配置容器，可用时同步备份到钥匙串；已存 Key 不回显，空白表示保留原 Key。聊天仅在你确认分析时发送到所选接口。")
             }
             Section("本地数据") {
                 Button("清除键盘暂存与等待取用的内容") {

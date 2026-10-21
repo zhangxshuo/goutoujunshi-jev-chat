@@ -3,7 +3,9 @@ DEVELOPMENT_TEAM =
 GOUTOU_BUNDLE_ID = ai.goutoujunshi.chatios
 GOUTOU_APP_GROUP = group.ai.goutoujunshi.chatios
 
-// Both targets must use the SAME App Group and shared keychain group.
+// App and keyboard extension must use the SAME App Group. Keychain Sharing is
+// optional; sideload builds keep secrets in the App Group (or keyboard-local
+// defaults when a signer strips the group entitlement).
 GOUTOU_KEYCHAIN_GROUP = $(AppIdentifierPrefix)$(GOUTOU_BUNDLE_ID)
 
 // Optional device-specific signing, excluded from Git.

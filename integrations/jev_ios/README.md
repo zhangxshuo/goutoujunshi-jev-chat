@@ -13,9 +13,15 @@
 [![iOS build](https://github.com/shengjidaguai-china/goutoujunshi-jev-chat/actions/workflows/ios-build.yml/badge.svg)](https://github.com/shengjidaguai-china/goutoujunshi-jev-chat/actions/workflows/ios-build.yml)
 [![License](https://img.shields.io/badge/License-MIT-orange)](../../LICENSE)
 
-> **当前安装方式：在 Mac 上用 Xcode 编译、签名，安装到自己的 iPhone。** 暂无公开签名 IPA、TestFlight 或 App Store 下载。GitHub Actions 的 iOS ZIP 是模拟器开发产物，不能直接装到手机。
+> **当前安装方式：在 Mac 上用 Xcode 编译、签名，或使用全能签给 Actions 的未签名 IPA 重签。** 暂无公开已签名 IPA、TestFlight 或 App Store 下载。模拟器 ZIP 不能直接装到手机。
 
 保留狗头军师的关系阶段、目标、事实与推测分开、停止条件、候选理由和「更像我一点」。支持中文全拼与英文输入；判断和回复可以只用 DeepSeek；截图可选 Apple Vision 本地识别、DeepSeek 或 OpenRouter。
+
+### 全能签等重签工具
+
+手动运行 **iOS source preview** 工作流后，下载 Actions 产物 `goutoujunshi-ios-unsigned-ipa`。包内是主 App、`GoutouKeyboard.appex` 和 `GoutouCapture.appex`，本身没有签名，交给全能签完成最终签名。
+
+签名时让三个 target 使用同一证书并保留相同 App Group；嵌套扩展必须一起签，不能只签外层 App。若重签工具剥离了 App Group，主 App 仍可独立使用，键盘会进入「全能签兼容模式」：在聊天页打开狗头军师键盘 →「军师」→「键盘内 API Key 配置」，直接填写 DeepSeek Key。兼容模式下，主 App 与键盘不共享配置，快捷指令截图回传也不可用；剪贴板、输入框草稿、分析和填入草稿仍可使用。
 
 **第一次使用的顺序：** 安装 App → 添加键盘 → 保存模型配置 → 复制一段对话试用 → 再设置截图快捷指令。
 
